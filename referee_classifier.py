@@ -267,10 +267,10 @@ def test_model(model_name, X, Y, prec_recall_curve = False):
             image = image.cuda()          
         if prec_recall_curve:
             out = model.predict(image, threshold = -1)
-            out = out.detach().cpu().numpy()
+            out = out.detach().mps().numpy()
         else:
             out = model.predict(image, threshold = THRESHOLD)
-            out = out.detach().cpu().numpy()
+            out = out.detach().mps().numpy()
         results.append(out[0])
     
     p, r = [], []
@@ -305,10 +305,10 @@ def test_classification(model, game, prec_recall_curve = False):
             image = image.cuda()          
         if prec_recall_curve:
             out = model.predict(image, threshold = -1)
-            out = out.detach().cpu().numpy()
+            out = out.detach().mps().numpy()
         else:
             out = model.predict(image, threshold = THRESHOLD)
-            out = out.detach().cpu().numpy()
+            out = out.detach().mps().numpy()
         results.append(out[0])
     
     p, r = [], []
@@ -331,7 +331,7 @@ def get_model (suffix, model_name = ''):
         model.load_state_dict(torch.load(model_name))
         model.cuda()
     else: 
-        model.load_state_dict(torch.load(model_name, map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(model_name, map_location=torch.device('mps')))
         
     model.eval()
     return model
@@ -357,7 +357,7 @@ def get_players_only_list (game, suffix, model_name='', save = False, file_name 
         if isCuda:
             image = image.cuda()            
         out = model.predict(image, threshold = threshold)
-        out = out.detach().cpu().numpy()
+        out = out.detach().mps().numpy()
         if (out[0]==0):
             new_X.append(original)
             if save:

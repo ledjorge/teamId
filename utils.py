@@ -50,7 +50,7 @@ def load_model_embed(model_path, isAE = False):
         model.load_state_dict(torch.load(model_path))
         model.to(torch.device('cuda'))
     else:
-        model.load_state_dict(torch.load(model_path,map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(model_path,map_location=torch.device('mps')))
     model.eval()
 
     return model 
@@ -107,7 +107,7 @@ def get_features(images, model):
         if isCuda:
             image = image.cuda()
         out = model.encode(image)
-        out = out.detach().cpu().numpy()
+        out = out.detach().mps().numpy()
         X.append(out[0])
     return X
 

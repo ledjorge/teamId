@@ -167,6 +167,6 @@ if __name__== "__main__":
         model.load_state_dict(torch.load(model_path))
         model.to(torch.device('cuda'))
     else:
-        model.load_state_dict(torch.load(model_path,map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(model_path,map_location=torch.device('mps')))
     model.eval()
     loader = load_data_triplet (games, model, [], False)
