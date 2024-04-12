@@ -64,7 +64,7 @@ def soft_clustering_weights(data, cluster_centres):
     return Weight
 
 # return data for game and high-confidence cluster subsets
-def load_data_helper(game, model, game_imgs, use_hist, threshold = ):       
+def load_data_helper(game, model, game_imgs, use_hist, threshold):
     if use_hist:
         features = utils.get_hist_features(game_imgs)
     else:

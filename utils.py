@@ -18,9 +18,9 @@ from imgaug import augmenters as iaa
 ################# Constants ##############################
 isCuda = torch.cuda.is_available()
 
-train_games = ["video0", "video1", "video2", "video5", "game1","game2", "game3", "game5", "game6"]
-val_games = ["video8", "game7"]
-test_games = ["video3", "video10", "game8", "game9"]
+train_games = ["sample"]
+val_games = ["sample"]
+test_games = ["sample"]
 
 data_dir = 'data/'
 images_sub_dir = '/masked_imgs/'
