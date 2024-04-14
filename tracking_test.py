@@ -58,6 +58,7 @@ def get_bag_features(train_images, test_images, K=35, h=64, pixel_number=400000)
 def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
     results = model_det(frame, device='mps')[0]
     detections = sv.Detections.from_ultralytics(results)
+    detections = detections[detections.class_id == 0]   #Only people
     if training_tracking: detections = tracker.update_with_detections(detections)
 
     if len(detections) > 0:
@@ -97,6 +98,7 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
 def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
     results = model_det(frame, device='mps')[0]
     detections = sv.Detections.from_ultralytics(results)
+    detections = detections[detections.class_id == 0]  # Only people
     if testing_tracking: detections = tracker.update_with_detections(detections)
     if len(detections) == 0: return frame
 
