@@ -5,6 +5,7 @@ import utils
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 import cv2
+from joblib import dump, load
 
 model_det = YOLO(model="yolov8n.pt")
 tracker = sv.ByteTrack()
@@ -17,6 +18,10 @@ source_path="/Users/jonino/Documents/personal/cv/ml6/senior-ml-engineer-challeng
 cap = cv2.VideoCapture(source_path)
 frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 cap.release()
+
+#
+path_out = '/Users/jonino/tests/ml6'
+store_clusters = True
 
 #
 training_tracking = False
@@ -76,7 +81,8 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
 
     if n_frame == frame_count-1:
         print('Fitting kmeans...')
-        kmeans.fit(train_features)
+        kmeans.fit(train_features_full)
+        if store_clusters: dump(kmeans, '{}/colors_kmeans_clusters.joblib'.format(path_out))
 
     # Output
     labels = [
@@ -131,10 +137,9 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
         annotated_frame, detections=detections, labels=labels)
     return trace_annotator.annotate(annotated_frame, detections=detections) if testing_tracking else annotated_frame
 
-
 sv.process_video(
     source_path=source_path,
-    target_path="/Users/jonino/tests/ml6/result_detection.mp4",
+    target_path="{}/result_detection.mp4".format(path_out),
     callback=callback_training
 )
 
@@ -142,6 +147,6 @@ tracker.reset()
 
 sv.process_video(
     source_path=source_path,
-    target_path="/Users/jonino/tests/ml6/result_ml6_challenge_hist_K2.mp4",
+    target_path="{}/result_ml6_challenge_hist_K2.mp4".format(path_out),
     callback=callback_testing
 )
