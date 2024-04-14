@@ -19,6 +19,8 @@ frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 cap.release()
 
 #
+training_tracking = False
+testing_tracking = False
 train_features_full = []
 
 #Using conrtrastive learning model for features
@@ -27,7 +29,8 @@ model_cl_path = '/Users/jonino/src/teamId/trained_models/embedding.pth'
 model_cl = utils.load_model_embed(model_cl_path)
 
 #Classifier
-labels_k_means_names = ['teamA', 'teamB', 'referee', 'fans']
+#labels_k_means_names = ['teamA', 'teamB', 'referee', 'fans']
+labels_k_means_names = ['teamA', 'teamB']
 n_clusters = len(labels_k_means_names)
 kmeans = KMeans(n_clusters=n_clusters)
 
@@ -55,7 +58,7 @@ def get_bag_features(train_images, test_images, K=35, h=64, pixel_number=400000)
 def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
     results = model_det(frame, device='mps')[0]
     detections = sv.Detections.from_ultralytics(results)
-    detections = tracker.update_with_detections(detections)
+    if training_tracking: detections = tracker.update_with_detections(detections)
 
     if len(detections) > 0:
         train_images = [
@@ -79,19 +82,22 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
         f"#{tracker_id} {results.names[class_id]}"
         for class_id, tracker_id
         in zip(detections.class_id, detections.tracker_id)
+    ] if training_tracking else [
+        f"#{results.names[class_id]}"
+        for class_id
+        in detections.class_id
     ]
 
     annotated_frame = box_annotator.annotate(
         frame.copy(), detections=detections)
     annotated_frame = label_annotator.annotate(
         annotated_frame, detections=detections, labels=labels)
-    return trace_annotator.annotate(
-        annotated_frame, detections=detections)
+    return trace_annotator.annotate(annotated_frame, detections=detections) if training_tracking else annotated_frame
 
 def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
     results = model_det(frame, device='mps')[0]
     detections = sv.Detections.from_ultralytics(results)
-    detections = tracker.update_with_detections(detections)
+    if testing_tracking: detections = tracker.update_with_detections(detections)
     if len(detections) == 0: return frame
 
     test_images = [
@@ -112,18 +118,21 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
         f"#{tracker_id} {labels_k_means_names[label_k]}"
         for tracker_id, label_k
         in zip(detections.tracker_id, labels_k_means)
+    ] if testing_tracking else [
+        f"#{labels_k_means_names[label_k]}"
+        for label_k
+        in labels_k_means
     ]
     annotated_frame = box_annotator.annotate(
         frame.copy(), detections=detections)
     annotated_frame = label_annotator.annotate(
         annotated_frame, detections=detections, labels=labels)
-    return trace_annotator.annotate(
-        annotated_frame, detections=detections)
+    return trace_annotator.annotate(annotated_frame, detections=detections) if testing_tracking else annotated_frame
 
 
 sv.process_video(
     source_path=source_path,
-    target_path="/Users/jonino/tests/ml6/result_tracking.mp4",
+    target_path="/Users/jonino/tests/ml6/result_detection.mp4",
     callback=callback_training
 )
 
@@ -131,6 +140,6 @@ tracker.reset()
 
 sv.process_video(
     source_path=source_path,
-    target_path="/Users/jonino/tests/ml6/result_ml6_challenge_hist.mp4",
+    target_path="/Users/jonino/tests/ml6/result_ml6_challenge_hist_K2.mp4",
     callback=callback_testing
 )
