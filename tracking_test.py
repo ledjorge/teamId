@@ -7,11 +7,12 @@ from sklearn.mixture import GaussianMixture
 import cv2
 from joblib import dump, load
 
-model_det = YOLO(model="yolov8n.pt")
+model_det = YOLO(model="yolov8n-seg.pt")
 tracker = sv.ByteTrack()
 box_annotator = sv.BoundingBoxAnnotator()
 label_annotator = sv.LabelAnnotator()
 trace_annotator = sv.TraceAnnotator()
+mask_annotator = sv.MaskAnnotator()
 
 # Open the video file and Get the total number of frames
 source_path="/Users/jonino/Documents/personal/cv/ml6/senior-ml-engineer-challenge/sample.mp4"
@@ -24,6 +25,7 @@ path_out = '/Users/jonino/tests/ml6'
 store_clusters = True
 
 #
+train_until_frame = 50 #frame_count-1
 training_tracking = False
 testing_tracking = False
 train_features_full = []
@@ -64,6 +66,7 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
     results = model_det(frame, device='mps')[0]
     detections = sv.Detections.from_ultralytics(results)
     detections = detections[detections.class_id == 0]   #Only people
+    detections = detections[detections.area > 0]  # Only with valid segmentation masks
     if training_tracking: detections = tracker.update_with_detections(detections)
 
     if len(detections) > 0:
@@ -72,14 +75,19 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
             for xyxy
             in detections.xyxy
         ]
+        train_masks = [
+            mask[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
+            for xyxy, mask
+            in zip(detections.xyxy, detections.mask)
+        ]
 
-        if (method == 'hist'): train_features = utils.get_hist_features(train_images)
+        if (method == 'hist'): train_features = utils.get_mask_hist_features(train_images, train_masks)
         elif (method == 'bag'): train_features, _ = get_bag_features(train_images, None)
         else: train_features = utils.get_features(train_images, model_cl)
 
         train_features_full.extend(train_features)
 
-    if n_frame == frame_count-1:
+    if n_frame == train_until_frame:
         print('Fitting kmeans...')
         kmeans.fit(train_features_full)
         if store_clusters: dump(kmeans, '{}/colors_kmeans_clusters.joblib'.format(path_out))
@@ -99,12 +107,15 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
         frame.copy(), detections=detections)
     annotated_frame = label_annotator.annotate(
         annotated_frame, detections=detections, labels=labels)
+    annotated_frame = mask_annotator.annotate(
+        annotated_frame, detections=detections)
     return trace_annotator.annotate(annotated_frame, detections=detections) if training_tracking else annotated_frame
 
 def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
     results = model_det(frame, device='mps')[0]
     detections = sv.Detections.from_ultralytics(results)
     detections = detections[detections.class_id == 0]  # Only people
+    detections = detections[detections.area>0]  # Only with valid segmentation masks
     if testing_tracking: detections = tracker.update_with_detections(detections)
     if len(detections) == 0: return frame
 
@@ -113,8 +124,13 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
         for xyxy
         in detections.xyxy
     ]
+    test_masks = [
+        mask[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
+        for xyxy, mask
+        in zip(detections.xyxy, detections.mask)
+    ]
 
-    if (method == 'hist'): test_features = utils.get_hist_features(test_images)
+    if (method == 'hist'): test_features = utils.get_mask_hist_features(test_images, test_masks)
     elif (method == 'bag'): train_features, test_features = get_bag_features(train_images, test_images)
     else: test_features = utils.get_features(test_images, model_cl)
 
@@ -135,11 +151,13 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
         frame.copy(), detections=detections)
     annotated_frame = label_annotator.annotate(
         annotated_frame, detections=detections, labels=labels)
+    annotated_frame = mask_annotator.annotate(
+        annotated_frame, detections=detections)
     return trace_annotator.annotate(annotated_frame, detections=detections) if testing_tracking else annotated_frame
 
 sv.process_video(
     source_path=source_path,
-    target_path="{}/result_detection.mp4".format(path_out),
+    target_path="{}/result_detection_seg.mp4".format(path_out),
     callback=callback_training
 )
 
@@ -147,6 +165,6 @@ tracker.reset()
 
 sv.process_video(
     source_path=source_path,
-    target_path="{}/result_ml6_challenge_hist_K2.mp4".format(path_out),
+    target_path="{}/result_ml6_challenge_hist_K2_f50_seg.mp4".format(path_out),
     callback=callback_testing
 )

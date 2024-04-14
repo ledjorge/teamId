@@ -72,6 +72,19 @@ def get_hist_features(images):
         X.append(img_hist)
     return X
 
+def get_mask_hist_features(images, masks):
+    X = []
+    for image, mask in zip(images, masks):
+        img_hist = []
+        for k in range(image.shape[2]):
+            temp = image[:,:,k]
+            new = temp[mask].flatten()  # Apply the mask directly
+            hist, _ = np.histogram(new, 8)
+            hist = hist / (1.0 * np.sum(hist))
+            img_hist += hist.tolist()
+        X.append(img_hist)
+    return X
+
 def get_hist_from_gmm(gmm,images, K=30, useColocation=False):
     X = []
     for c in images:
