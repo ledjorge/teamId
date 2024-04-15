@@ -13,6 +13,7 @@ box_annotator = sv.BoundingBoxAnnotator()
 label_annotator = sv.LabelAnnotator()
 trace_annotator = sv.TraceAnnotator()
 mask_annotator = sv.MaskAnnotator()
+halo_annotator = sv.PolygonAnnotator()
 
 # Open the video file and Get the total number of frames
 source_path="/Users/jonino/Documents/personal/cv/ml6/senior-ml-engineer-challenge/sample.mp4"
@@ -25,7 +26,7 @@ path_out = '/Users/jonino/tests/ml6'
 store_clusters = True
 
 #
-train_until_frame = 50 #frame_count-1
+train_until_frame = frame_count-1   #50 #frame_count-1
 training_tracking = False
 testing_tracking = False
 train_features_full = []
@@ -36,8 +37,8 @@ model_cl_path = '/Users/jonino/src/teamId/trained_models/embedding.pth'
 model_cl = utils.load_model_embed(model_cl_path)
 
 #Classifier
-#labels_k_means_names = ['teamA', 'teamB', 'referee', 'fans']
-labels_k_means_names = ['teamA', 'teamB']
+labels_k_means_names = ['teamA', 'teamB', 'referee', 'fans']
+#labels_k_means_names = ['teamA', 'teamB']
 n_clusters = len(labels_k_means_names)
 kmeans = KMeans(n_clusters=n_clusters)
 
@@ -151,7 +152,7 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
         frame.copy(), detections=detections)
     annotated_frame = label_annotator.annotate(
         annotated_frame, detections=detections, labels=labels)
-    annotated_frame = mask_annotator.annotate(
+    annotated_frame = halo_annotator.annotate(
         annotated_frame, detections=detections)
     return trace_annotator.annotate(annotated_frame, detections=detections) if testing_tracking else annotated_frame
 
@@ -165,6 +166,6 @@ tracker.reset()
 
 sv.process_video(
     source_path=source_path,
-    target_path="{}/result_ml6_challenge_hist_K2_f50_seg.mp4".format(path_out),
+    target_path="{}/result_ml6_challenge_hist_K4_seg.mp4".format(path_out),
     callback=callback_testing
 )
