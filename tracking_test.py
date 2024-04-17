@@ -75,22 +75,28 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
     if training_tracking: detections = tracker.update_with_detections(detections)
 
     if len(detections) > 0:
-        train_images = [
-            frame[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
-            for xyxy
-            in detections.xyxy
-        ]
         train_masks = [
             mask[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
             for xyxy, mask
             in zip(detections.xyxy, detections.mask)
         ]
 
-        if (method == 'hist'): train_features = utils.get_mask_hist_features(train_images, train_masks)
-        elif (method == 'bag'): train_features, _ = get_bag_features(train_images, None)
-        else: train_features = utils.get_features(train_images, model_cl)
+        mask_is_valid = [np.any(arr, axis=1).any() for arr in train_masks]
+        detections = detections[mask_is_valid]
+        if len(detections) > 0:
+            train_masks = [item for item, keep in zip(train_masks, mask_is_valid) if keep]
 
-        train_features_full.extend(train_features)
+            train_images = [
+                frame[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
+                for xyxy
+                in detections.xyxy
+            ]
+
+            if (method == 'hist'): train_features = utils.get_mask_hist_features(train_images, train_masks)
+            elif (method == 'bag'): train_features, _ = get_bag_features(train_images, None)
+            else: train_features = utils.get_features(train_images, model_cl)
+
+            train_features_full.extend(train_features)
 
     if n_frame == train_until_frame:
         print('Fitting kmeans...')
@@ -124,15 +130,21 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
     if testing_tracking: detections = tracker.update_with_detections(detections)
     if len(detections) == 0: return frame
 
-    test_images = [
-        frame[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
-        for xyxy
-        in detections.xyxy
-    ]
     test_masks = [
         mask[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
         for xyxy, mask
         in zip(detections.xyxy, detections.mask)
+    ]
+
+    mask_is_valid = [np.any(arr, axis=1).any() for arr in test_masks]
+    detections = detections[mask_is_valid]
+    if len(detections) == 0: return frame
+    test_masks = [item for item, keep in zip(test_masks, mask_is_valid) if keep]
+
+    test_images = [
+        frame[max(int(xyxy[1]), 0):max(int(xyxy[3]), 0), max(int(xyxy[0]), 0):max(int(xyxy[2]), 0)]
+        for xyxy
+        in detections.xyxy
     ]
 
     if (method == 'hist'): test_features = utils.get_mask_hist_features(test_images, test_masks)
