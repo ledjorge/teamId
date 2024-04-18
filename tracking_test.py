@@ -21,6 +21,7 @@ fg_color = sv.Color.WHITE
 
 # Open the video file and Get the total number of frames
 source_path="/Users/jonino/Documents/personal/cv/ml6/senior-ml-engineer-challenge/sample.mp4"
+#source_path = '/Users/jonino/temp/expats_4.mp4'
 cap = cv2.VideoCapture(source_path)
 frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 cap.release()
@@ -42,10 +43,11 @@ model_cl = utils.load_model_embed(model_cl_path)
 
 #Classifier
 #labels_k_means_names = ['teamA', 'teamB', 'referee', 'fans']
-labels_k_means_names = ['teamA', 'teamB']
-n_clusters = len(labels_k_means_names)
+labels_k_means_names = ['teamA', 'teamB', '?']
+n_clusters = len(labels_k_means_names)-1
 kmeans = KMeans(n_clusters=n_clusters)
-kmeans_saved_path = '/Users/jonino/tests/ml6/mvp_1/K2f50/colors_kmeans_clusters.joblib'    #'/Users/jonino/tests/ml6/mvp_1/colors_kmeans_clusters.joblib'    #None
+kmeans_saved_path = '/Users/jonino/tests/ml6/mvp_1/K2f50/colors_kmeans_clusters.joblib'    #'/Users/jonino/tests/ml6/mvp_1/K2f50/colors_kmeans_clusters.joblib'    #'/Users/jonino/tests/ml6/mvp_1/colors_kmeans_clusters.joblib'    #None
+distance_threshold = 0.4
 
 def get_bag_features(train_images, test_images, K=35, h=64, pixel_number=400000):
     # learn bag of colors on the current game
@@ -154,8 +156,11 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
 
     labels_k_means = kmeans.predict(test_features)
     distances = kmeans.transform(test_features)
-    scores = np.clip(1 - distances, 0, 1)
-    predicted_scores = scores[np.arange(len(labels_k_means)), labels_k_means]
+
+    #####detections,labels_k_means, are modified here
+    predicted_distances = distances[np.arange(len(labels_k_means)), labels_k_means]
+    labels_k_means[predicted_distances > distance_threshold] = n_clusters   #TODO: Just to plot "bad" samples
+    predicted_scores = np.clip(1 - predicted_distances, 0, 1)
 
     # Output
     detections.class_id = labels_k_means
