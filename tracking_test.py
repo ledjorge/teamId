@@ -86,6 +86,7 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
 
         mask_is_valid = [np.any(arr, axis=1).any() for arr in train_masks]
         detections = detections[mask_is_valid]
+
         if len(detections) > 0:
             train_masks = [item for item, keep in zip(train_masks, mask_is_valid) if keep]
 
@@ -99,12 +100,18 @@ def callback_training(frame: np.ndarray, n_frame: int) -> np.ndarray:
             elif (method == 'bag'): train_features, _ = get_bag_features(train_images, None)
             else: train_features = utils.get_features(train_images, model_cl)
 
-            train_features_full.extend(train_features)
+            if n_frame <= train_until_frame: train_features_full.extend(train_features)
 
     if n_frame == train_until_frame:
         print('Fitting kmeans...')
-        kmeans.fit(train_features_full)
-        if store_clusters: dump(kmeans, '{}/colors_kmeans_clusters.joblib'.format(path_out))
+        if N_fits > 0:
+            labels_k_means = kmeans.predict(train_features_full)
+            distances = kmeans.transform(train_features_full)
+            predicted_distances = distances[np.arange(len(labels_k_means)), labels_k_means]
+            train_features_full_filt = np.array(train_features_full)[predicted_distances < distance_threshold]
+            kmeans.fit(train_features_full_filt)
+        else: kmeans.fit(train_features_full)
+        if store_clusters: dump(kmeans, '{}/colors_kmeans_clusters_{}.joblib'.format(path_out, N_fits))
 
     # Output
     labels = [
@@ -187,20 +194,38 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
     annotated_frame = sv.draw_text(scene=annotated_frame, text="{} {} - {} {}".format(labels_k_means_names[0], N_0,labels_k_means_names[1], N_1), text_anchor=text_anchor, background_color=bg_color, text_color=fg_color)
     return trace_annotator.annotate(annotated_frame, detections=detections) if testing_tracking else annotated_frame
 
+N_fits = 0
 if kmeans_saved_path is None:
     sv.process_video(
         source_path=source_path,
         target_path="{}/result_detection_seg.mp4".format(path_out),
         callback=callback_training
     )
+    N_fits+=1
 else:
     print('Will use existing KMeans from {}...'.format(kmeans_saved_path))
     kmeans = load(kmeans_saved_path)
+    N_fits += 1
 
 tracker.reset()
-
 sv.process_video(
     source_path=source_path,
-    target_path="{}/result_ml6_challenge_hist_K2_f50.mp4".format(path_out),
+    target_path="{}/result_ml6_challenge_hist_K2_f50_{}.mp4".format(path_out, N_fits-1),
+    callback=callback_testing
+)
+
+tracker.reset()
+train_features_full.clear()
+sv.process_video(
+    source_path=source_path,
+    target_path="{}/result_detection_seg.mp4".format(path_out),
+    callback=callback_training
+)
+N_fits+=1
+
+tracker.reset()
+sv.process_video(
+    source_path=source_path,
+    target_path="{}/result_ml6_challenge_hist_K2_f50_{}.mp4".format(path_out, N_fits-1),
     callback=callback_testing
 )
