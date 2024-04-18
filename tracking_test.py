@@ -14,6 +14,7 @@ label_annotator = sv.LabelAnnotator()
 trace_annotator = sv.TraceAnnotator()
 mask_annotator = sv.MaskAnnotator()
 polygon_annotator = sv.PolygonAnnotator()
+distance_annotator = sv.PercentageBarAnnotator()
 text_anchor = sv.Point(x=510, y=50)
 bg_color = sv.Color.BLACK
 fg_color = sv.Color.WHITE
@@ -152,6 +153,9 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
     else: test_features = utils.get_features(test_images, model_cl)
 
     labels_k_means = kmeans.predict(test_features)
+    distances = kmeans.transform(test_features)
+    scores = np.clip(1 - distances, 0, 1)
+    predicted_scores = scores[np.arange(len(labels_k_means)), labels_k_means]
 
     # Output
     detections.class_id = labels_k_means
@@ -164,12 +168,14 @@ def callback_testing(frame: np.ndarray, n_frame: int) -> np.ndarray:
         for label_k
         in labels_k_means
     ]
-    annotated_frame = box_annotator.annotate(
-        frame.copy(), detections=detections)
-    annotated_frame = label_annotator.annotate(
-        annotated_frame, detections=detections, labels=labels)
+    #annotated_frame = box_annotator.annotate(
+    #    frame.copy(), detections=detections)
+    #annotated_frame = label_annotator.annotate(
+    #    annotated_frame, detections=detections, labels=labels)
     annotated_frame = polygon_annotator.annotate(
-        annotated_frame, detections=detections)
+        frame, detections=detections)
+    annotated_frame = distance_annotator.annotate(
+        annotated_frame, detections=detections, custom_values=predicted_scores)
 
     N_0 = sum(labels_k_means==0)
     N_1 = sum(labels_k_means == 1)
@@ -190,6 +196,6 @@ tracker.reset()
 
 sv.process_video(
     source_path=source_path,
-    target_path="{}/result_ml6_challenge_hist_K2_f50_loaded.mp4".format(path_out),
+    target_path="{}/result_ml6_challenge_hist_K2_f50.mp4".format(path_out),
     callback=callback_testing
 )
